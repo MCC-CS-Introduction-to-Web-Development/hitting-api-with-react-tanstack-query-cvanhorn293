@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import axios from "axios";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
@@ -57,22 +57,10 @@ const TableSkeleton = () => {
 
 export default function DataDisplay() {
     const [localAlbums, setLocalAlbums] = useState<Album[]>([]);
-    const queryClient = useQueryClient();
 
     const { data, isLoading, error } = useQuery({
         queryKey: ["albums"],
         queryFn: () => axios.get("https://jsonplaceholder.typicode.com/albums").then((res) => res.data),
-    });
-
-    const addAlbumMutation = useMutation({
-        mutationFn: async (newAlbum: AlbumFormData) => {
-            const response = await axios.post("https://jsonplaceholder.typicode.com/albums", newAlbum);
-            return response.data;
-        },
-        onSuccess: (newAlbum) => {
-            setLocalAlbums((prev) => [...prev, newAlbum]);
-            queryClient.invalidateQueries({ queryKey: ["albums"] });
-        },
     });
 
     const {
@@ -85,11 +73,18 @@ export default function DataDisplay() {
     });
 
     const handleAddAlbum = (formData: AlbumFormData) => {
-        addAlbumMutation.mutate(formData, {
-            onSuccess: () => {
-                reset();
-            },
-        });
+        const allAlbums = [...(data || []), ...localAlbums];
+        if (allAlbums.length === 0) return;
+
+        const newId = Math.max(...allAlbums.map((album) => album.id)) + 1;
+        const newAlbum: Album = {
+            id: newId,
+            userId: formData.userId,
+            title: formData.title,
+        };
+
+        setLocalAlbums([...localAlbums, newAlbum]);
+        reset();
     };
 
     if (error) {
